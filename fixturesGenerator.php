@@ -37,12 +37,13 @@ function createFixtures($tableData, $defaultColumnsData, $dependData=null) {
 
     }
 
-    //clean depend data -> are used for recursion
-    unset($dependData);
+    //clean depend data -> are used for recursion -> use default definition
+    $recountData = array();
 
     return $fixtures;
 }
 
+//[TODO, , B] split big function
 function doSelect ($table, $filterData, &$fixtures, $collect, $dependData=array()) {
     global $defaultColumnsData, $recountData;
 
@@ -69,7 +70,7 @@ function doSelect ($table, $filterData, &$fixtures, $collect, $dependData=array(
                 $filterCondition = $fData['val'];
             } else {
                 $collectionColumn = $fData['collectCol'];
-                $filterColToRecount = $fData['filterCol'];////[TODO, pavel.filipcik@intraworlds.com, B] do this -> works only for ONE -> it is used for recounting ids
+                $filterColToRecount = $fData['filterCol'];////[TODO,  B] do this -> works only for ONE -> it is used for recounting ids
                 $filterTable        = $fTable;
                 $filterCondition = $dependData[$fTable][$collectionColumn];
             }
@@ -132,13 +133,16 @@ function doSelect ($table, $filterData, &$fixtures, $collect, $dependData=array(
             }
 
             if (in_array($colName, $filterData['recountCol'])) {
-                if(array_key_exists($table, $recountData) && array_key_exists($colName, $recountData[$table])) {
+                if(isset($recountData[$table][$colName])) {
                     $recountVal = $recountData[$table][$colName]['countValue'];
                 }
 
                 // NOTE:  the colName in path does not allow for  table with  id, type, ref -> the ref start from 1001 for each type
-                $recountData[$table][$colName][$colData] = $recountVal++;
-                $recountData[$table][$colName]['countValue'] = $recountVal;
+                if (!isset($recountData[$table][$colName][$colData])) {
+                    // to prevent recounting the same values in table
+                    $recountData[$table][$colName][$colData] = $recountVal++;
+                    $recountData[$table][$colName]['countValue'] = $recountVal;
+                }
 
                 $colData = $recountData[$table][$colName][$colData];
             } else if ($colName == $filterColToRecount) {
