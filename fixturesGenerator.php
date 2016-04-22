@@ -11,6 +11,7 @@ $fixtures = '';
 
 $recountData = array();
 
+const MAX_COUNT_LIMIT = 100;
 $fixtures = createFixtures($tableData, $defaultColumnsData, $startDependData);
 
 echo '<br><br><br>';
@@ -54,21 +55,44 @@ function doSelect ($table, $filterData, &$fixtures, $collect, $dependData=array(
 
     $conjunction = false;
 
-    foreach ($filterData['filterCondition'] as $fData) {
-        $conjunction = $conjunction === false ? '' : $conjunction = $fData['conjunction'] ?: ' AND ';
-
-        $fTable = $fData['filterTable'];
-
-        if ($fData['val']) {
-            $filterCondition = $fData['val'];
-        } else {
-            $collectionColumn = $fData['collectCol'];
-            $filterColToRecount = $fData['filterCol'];//TODO, do this -> works only for ONE -> it is used for recounting ids
-            $filterTable        = $fTable;
-            $filterCondition = $dependData[$fTable][$collectionColumn];
+    if ($filterData['filterCondition'] === false) {
+        if ($newLimit = _checkMaxCountLimit($table)) {
+            $limit =  $newLimit;
         }
+    } else {
+        foreach ($filterData['filterCondition'] as $fData) {
+            $conjunction = $conjunction === false ? '' : $conjunction = $fData['conjunction'] ?: ' AND ';
 
-        $selCondition.= $conjunction.  " ".$fData['filterCol']." IN (".implode(',', $filterCondition).") ";
+            $fTable = $fData['filterTable'];
+
+            if ($fData['val']) {
+                $filterCondition = $fData['val'];
+            } else {
+                $collectionColumn = $fData['collectCol'];
+                $filterColToRecount = $fData['filterCol'];////[TODO, pavel.filipcik@intraworlds.com, B] do this -> works only for ONE -> it is used for recounting ids
+                $filterTable        = $fTable;
+                $filterCondition = $dependData[$fTable][$collectionColumn];
+            }
+
+            $filterConditionResult = '';
+
+            if (is_array($filterCondition)) {
+                $filterCondition = array_filter($filterCondition);
+            }
+
+            if (empty($filterCondition)) {
+                echo "WARNING: Expected filter condidation, but none received.";
+
+                if ($newLimit = _checkMaxCountLimit($table)) {
+                    $limit = $newLimit;
+                }
+            } else {
+                var_dump(sprintf("\033[41m.....\033[0m%s: ", "filterCondition").var_export($filterCondition, 1));
+                $filterConditionResult = $fData['filterCol'] . " IN (".implode(',', $filterCondition).") ";
+
+                $selCondition.= $conjunction.  " " . $filterConditionResult;
+            }
+        }
     }
 
     if ($selCondition) {
@@ -84,7 +108,7 @@ function doSelect ($table, $filterData, &$fixtures, $collect, $dependData=array(
     }
 
     var_dump(sprintf("\033[41m.....\033[0m%s: ", "select").var_export($select, 1));
-    $query  = fktquery($select,$rel);
+    $query  = fktquery($select, $rel);
 
     $addFixtures = $table.':';
     $addFixtures .= "\n";
@@ -147,8 +171,25 @@ function doSelect ($table, $filterData, &$fixtures, $collect, $dependData=array(
 
     $fixtures .= $addFixtures;
 
+    ////[TODO,  B] do this ->  prvky nejsou uniq!
     return $collectedData;
 }
+
+function _checkMaxCountLimit($table) {
+    $limit = false;
+
+    $countSql = "select count(*) as count from $table";
+    $count = fktquery($countSql, $rel);
+
+    if (fktfetcharray($count)['count'] > MAX_COUNT_LIMIT) {
+        echo "WARNING: MAX_COUNT_LIMIT " . MAX_COUNT_LIMIT . " protection added.";
+        $limit = MAX_COUNT_LIMIT;
+    }
+
+    return $limit;
+}
+
+die('tady ne');
 
 echo 'konec';
 
