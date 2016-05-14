@@ -82,13 +82,12 @@ function doSelect ($table, $filterData, &$fixtures, $collect, $dependData=array(
             }
 
             if (empty($filterCondition)) {
-                echo "WARNING: Expected filter condidation, but none received.";
+                echo "WARNING: Expected filter condition, but none received.";
 
                 if ($newLimit = _checkMaxCountLimit($table)) {
                     $limit = $newLimit;
                 }
             } else {
-                var_dump(sprintf("\033[41m.....\033[0m%s: ", "filterCondition").var_export($filterCondition, 1));
                 $filterConditionResult = $fData['filterCol'] . " IN (".implode(',', $filterCondition).") ";
 
                 $selCondition.= $conjunction.  " " . $filterConditionResult;
@@ -145,24 +144,19 @@ function doSelect ($table, $filterData, &$fixtures, $collect, $dependData=array(
                 }
 
                 $colData = $recountData[$table][$colName][$colData];
-            } else if ($colName == $filterColToRecount) {
+            } else if (array_key_exists($colName, $filterData['recountCol'])) {
+                // if it is defined in key, it means, that the recounted value is taken from others table
+                //   column, which was recounted
+                $definedRecountedData    = $filterData['recountCol'][$colName];
+                $tableForRecount  = array_keys($definedRecountedData)[0];
+                $columnForRecount = array_values($definedRecountedData)[0];
 
-                //[TODO -> bug v tabulce land   (nr neodpovida odkazu v zusatz_data  val
-                if ($table == 'land') {
-                    var_dump($recountData[$filterTable]);
-                    var_dump(sprintf("\033[41m.....\033[0m%s: ", "colData - colName").var_export($colName, 1));
-                    var_dump(sprintf("\033[41m.....\033[0m%s: ", "colData - collectionColumn").var_export($collectionColumn, 1));
+                if(isset($recountData[$tableForRecount][$columnForRecount])) {
+                    $colData = $recountData[$tableForRecount][$columnForRecount][$colData];
                 }
-
+            } else if ($colName == $filterColToRecount) {
                 //$colData = $recountData[$filterTable][$colName][$colData];
                 $colData = $recountData[$filterTable][$collectionColumn][$colData];
-            }
-
-            if (false && $table == 'land') {
-                var_dump(sprintf("\033[41m.....\033[0m%s: ", "filterColToRecount").var_export($filterColToRecount, 1));
-                var_dump(sprintf("\033[41m.....\033[0m%s: ", "recountData").var_export($recountData, 1));
-                var_dump(sprintf("\033[41m.....\033[0m%s: ", "filterTable").var_export($filterTable, 1));
-                var_dump(sprintf("\033[41m.....\033[0m%s: ", "collectionColumn").var_export($collectionColumn, 1));
             }
 
             if ((is_null($colData) || $colData == '') && in_array($colName, $defaultColumnsData[$table])) {
